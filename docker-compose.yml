@@ -44,7 +44,7 @@ services:
     volumes:
       - postgres_storage:/var/lib/postgresql/data
     env_file:
-      - .env
+      - .env.example
 
 
   # --------------------------- MAIN n8n INSTANCE -------------------------------
