@@ -1,0 +1,17 @@
+# runtime / n8n data - do NOT commit
+n8n/
+*.sqlite
+*.journal
+*.log
+binaryData/
+nodes/
+ssh/
+config/
+
+# secrets
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
