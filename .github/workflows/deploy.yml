@@ -1,4 +1,4 @@
-name: CD - Deploy to Azure VM
+name: Deploy to Azure VM
 
 on:
   push:
@@ -10,31 +10,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    # -----------------------------
+    # 1. CHECKOUT REPOSITORY
+    # -----------------------------
+    - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Install SSH Client
-      run: sudo apt-get update && sudo apt-get install -y openssh-client
+    # -----------------------------
+    # 2. SET UP SSH AGENT
+    # -----------------------------
+    - name: Setup SSH Agent
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Setup SSH Key
+    # -----------------------------
+    # 3. TEST SSH CONNECTION
+    # -----------------------------
+    - name: Test SSH connection
       run: |
-        mkdir -p ~/.ssh
-        echo "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
+        ssh -o StrictHostKeyChecking=no \
+            -p 22 \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "echo 'SSH connection successful'"
 
-    - name: Test SSH Connection
+    # -----------------------------
+    # 4. COPY FILES TO SERVER
+    # -----------------------------
+    - name: Copy files to Azure VM
       run: |
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -p $SERVER_SSH_PORT $SERVER_USER@$SERVER_HOST "echo 'SSH connection successful'"
+        rsync -avz -e "ssh -o StrictHostKeyChecking=no -p 22" \
+        ./n8n/ \
+        ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/home/${{ secrets.SERVER_USER }}/n8n/
 
-    - name: Sync Project to Server
+    # -----------------------------
+    # 5. RUN DOCKER COMPOSE ON SERVER
+    # -----------------------------
+    - name: Run Docker Compose on Server
       run: |
-        rsync -avz -e "ssh -i ~/.ssh/deploy_key -p $SERVER_SSH_PORT" ./ $SERVER_USER@$SERVER_HOST:$SERVER_PATH
-
-    - name: Deploy using Docker Compose
-      run: |
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -p $SERVER_SSH_PORT $SERVER_USER@$SERVER_HOST "
-        cd $SERVER_PATH &&
-        docker-compose down &&
-        docker-compose pull &&
-        docker-compose up -d
-        "
+        ssh -o StrictHostKeyChecking=no \
+            -p 22 \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "cd /home/${{ secrets.SERVER_USER }}/n8n && docker-compose pull && docker-compose up -d"
