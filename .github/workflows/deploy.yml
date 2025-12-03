@@ -10,45 +10,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    # 1️⃣ CHECKOUT CODE
+    - name: Checkout Code
       uses: actions/checkout@v3
 
-    # -----------------------------
-    # 1. SETUP SSH KEY
-    # -----------------------------
-    - name: Setup SSH key
-      uses: webfactory/ssh-agent@v0.9.0
+    # 2️⃣ START SSH AGENT WITH PRIVATE KEY
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.7.0
       with:
         ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-    # -----------------------------
-    # 2. TEST SSH CONNECTION
-    # -----------------------------
-    - name: Test SSH Connection
+    # 3️⃣ TEST CONNECTION
+    - name: Test SSH connection
       run: |
         ssh -o StrictHostKeyChecking=no \
-        -p ${{ secrets.SERVER_SSH_PORT }} \
-        ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-        "echo 'SSH OK'"
+            -p "${{ secrets.SERVER_SSH_PORT }}" \
+            "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
+            "echo 'SSH OK'"
 
-    # -----------------------------
-    # 3. SYNC FILES TO SERVER
-    # -----------------------------
-    - name: Upload project files to server
+    # 4️⃣ SYNC FILES TO SERVER
+    - name: Sync project to server
       run: |
-        rsync -avz -e "ssh -p ${{ secrets.SERVER_SSH_PORT }}" \
-        ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}
+        rsync -avz \
+          -e "ssh -o StrictHostKeyChecking=no -p ${{ secrets.SERVER_SSH_PORT }}" \
+          ./ \
+          "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}"
 
-    # -----------------------------
-    # 4. DEPLOY USING DOCKER COMPOSE
-    # -----------------------------
-    - name: Deploy using Docker Compose
+    # 5️⃣ DEPLOY DOCKER COMPOSE ON SERVER
+    - name: Deploy with Docker Compose
       run: |
         ssh -o StrictHostKeyChecking=no \
-        -p ${{ secrets.SERVER_SSH_PORT }} \
-        ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-          cd ${{ secrets.SERVER_PATH }} &&
-          docker-compose down &&
-          docker-compose pull &&
-          docker-compose up -d
-        "
+            -p "${{ secrets.SERVER_SSH_PORT }}" \
+            "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
+            "cd '${{ secrets.SERVER_PATH }}' && \
+             /usr/bin/docker-compose down && \
+             /usr/bin/docker-compose pull && \
+             /usr/bin/docker-compose up -d"
